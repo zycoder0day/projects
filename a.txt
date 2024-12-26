@@ -1,0 +1,12 @@
+# Mengaktifkan modul RewriteEngine
+RewriteEngine On
+
+# Jika file atau direktori tidak ditemukan
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Arahkan semua permintaan ke folder "subfolder"
+RewriteRule ^(.*)$ /v2/$1 [L]
+
+# Setel file index ke folder "subfolder"
+DirectoryIndex /v2/index.php
