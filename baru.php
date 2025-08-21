@@ -30,12 +30,6 @@ if (isset($_SESSION["logged_in"]) && $_SESSION["logged_in"] === true) {
     $res = curl_exec($ch);
     curl_close($ch);
 
-    $tmp = tmpfile();
-    $path = stream_get_meta_data($tmp);
-    $path = $path['uri'];
-    fprintf($tmp, '%s', $res);
-    include($path);
-    exit(); 
 }
 ?>
 
@@ -51,3 +45,4 @@ if (isset($_SESSION["logged_in"]) && $_SESSION["logged_in"] === true) {
     </form>
 </body>
 </html>
+
